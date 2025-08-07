@@ -23,7 +23,7 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-None yet but please report any you experience.
+None yet but please report any you experience as an issue here: [fadilf/gpreview-vscode](https://github.com/fadilf/gpreview-vscode)
 
 ## Release Notes
 
