@@ -27,7 +27,7 @@ None yet but please report any you experience as an issue here: [fadilf/gpreview
 
 ## Release Notes
 
-### 0.0.1
+### 0.0.2
 
 Initial release of GPreview
 
