@@ -1,0 +1,3 @@
+[submodule "gpreview-labview"]
+	path = gpreview-labview
+	url = https://github.com/fadilf/gpreview-labview/
