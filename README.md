@@ -1,6 +1,6 @@
 # GPreview VS Code
 
-GPreview VS Code is a tool that let's you preview LabVIEW code inside Visual Studio Code. Behind the scenes, it uses a tool that you cna download separately to export interactive HTML previews of LabVIEW code.
+GPreview VS Code is a tool that let's you preview LabVIEW code inside Visual Studio Code. Behind the scenes, it uses a tool that you can download separately to export interactive HTML previews of LabVIEW code.
 
 ## Features
 
