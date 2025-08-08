@@ -2,6 +2,8 @@
 
 GPreview VS Code is a tool that let's you preview LabVIEW code inside Visual Studio Code. Behind the scenes, it uses a tool that you can download separately to export interactive HTML previews of LabVIEW code.
 
+[Link to the VS Code extension](https://marketplace.visualstudio.com/items?itemName=fadil.gpreview)
+
 ## Features
 
 ![GPreview VS Code Demo](images/GPreview%20Demo.webp)
@@ -26,6 +28,12 @@ This extension contributes the following settings:
 None yet but please report any you experience as an issue here: [fadilf/gpreview-vscode](https://github.com/fadilf/gpreview-vscode)
 
 ## Release Notes
+
+### 0.0.4
+
+Move VI rendering to Document class
+Add support for viewing files in workspace state outisde of filesystem
+Add border around preview
 
 ### 0.0.3
 

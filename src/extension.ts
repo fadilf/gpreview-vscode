@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { exec } from 'child_process';
-import { readFileSync, unlink } from 'fs';
+import * as fs from 'fs';
 import { promisify } from 'util';
 import os from 'os';
 import crypto from 'crypto';
@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(registration);
 }
 
-export class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvider {
+class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvider {
     constructor(private readonly context: vscode.ExtensionContext) {}
 
     async openCustomDocument(
@@ -56,44 +56,10 @@ export class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvid
 
     private async getWebviewContent(document: GPreviewDocument, webview: vscode.Webview): Promise<string> {
         try {
-            const htmlContent = await this.convertViToHtml(document.uri.fsPath);
-			return htmlContent;
+			return await document.readFile();
 
         } catch (error) {
             return this.getErrorContent(error as Error);
-        }
-    }
-
-    async convertViToHtml(viFilePath: string): Promise<string> {
-        try {
-            const config = vscode.workspace.getConfiguration('gpreview');
-            const viServerPort = config.get<number>('viServerPort', 3363);
-			const directory = __dirname + "/../gpreview-labview/";
-			const outputFilePath = path.normalize(os.tmpdir() + "/" + crypto.randomBytes(16).toString('hex') + ".html");
-            const cliPath = path.normalize(directory + "CLI.vi");
-            const normalizedViFilePath = path.resolve(path.normalize(viFilePath));
-            let cmd = `LabVIEWCLI -OperationName RunVI `;
-            const labViewFilePath = config.get<string>('labViewFilePath', '');
-            if (labViewFilePath !== '') {
-                const normalizedLabViewFilePath = path.normalize(labViewFilePath);
-                cmd += `-LabVIEWPath "${normalizedLabViewFilePath}" `;
-            }
-            cmd += `-PortNumber ${viServerPort} -VIPath "${cliPath}" "${normalizedViFilePath}" "${outputFilePath}" ${viServerPort}`;
-            const { stderr } = await execAsync(cmd);
-
-            if (stderr) {
-                console.warn('Conversion warning:', stderr);
-            }
-            
-			const file = readFileSync(outputFilePath, 'utf-8');
-            unlink(outputFilePath,  (error) => {
-                if (error) {throw new Error(`Failed to convert VI file: ${error}`);}
-            });
-
-            return file || '<div class="loading">Processing VI file...</div>';
-        } catch (error) {
-            console.error('Error converting VI file:', error);
-            throw new Error(`Failed to convert VI file: ${error}`);
         }
     }
 
@@ -146,8 +112,57 @@ export class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvid
     }
 }
 
-class GPreviewDocument implements vscode.CustomDocument {
+export class GPreviewDocument implements vscode.CustomDocument {
     constructor(public readonly uri: vscode.Uri) {}
+
+    async readFile() {
+        const wsBytes = new Uint8Array(await vscode.workspace.fs.readFile(this.uri));
+        if (fs.existsSync(this.uri.fsPath)) {
+            const fsBytes = new Uint8Array(fs.readFileSync(this.uri.fsPath));
+            if (Buffer.compare(wsBytes, fsBytes) === 0) {
+                return await GPreviewDocument.convertViToHtml(this.uri.fsPath);
+            }
+        }
+        vscode.window.showWarningMessage("VI is being read from bytes outside of environment. Rendering may be affected.");
+        const tmpViFilePath = path.normalize(os.tmpdir() + "/" + crypto.randomBytes(16).toString('hex') + ".vi");
+        fs.writeFileSync(tmpViFilePath, wsBytes);
+        const htmlRender = await GPreviewDocument.convertViToHtml(tmpViFilePath);
+        fs.unlinkSync(tmpViFilePath);
+        return htmlRender;
+    }
+
+    static async convertViToHtml(viFilePath: string): Promise<string> {
+        try {
+            const config = vscode.workspace.getConfiguration('gpreview');
+            const viServerPort = config.get<number>('viServerPort', 3363);
+			const directory = __dirname + "/../gpreview-labview/";
+			const outputFilePath = path.normalize(os.tmpdir() + "/" + crypto.randomBytes(16).toString('hex') + ".html");
+            const cliPath = path.normalize(directory + "CLI.vi");
+            const normalizedViFilePath = path.resolve(path.normalize(viFilePath));
+            let cmd = `LabVIEWCLI -OperationName RunVI `;
+            const labViewFilePath = config.get<string>('labViewFilePath', '');
+            if (labViewFilePath !== '') {
+                const normalizedLabViewFilePath = path.normalize(labViewFilePath);
+                cmd += `-LabVIEWPath "${normalizedLabViewFilePath}" `;
+            }
+            cmd += `-PortNumber ${viServerPort} -VIPath "${cliPath}" "${normalizedViFilePath}" "${outputFilePath}" ${viServerPort}`;
+            const { stderr } = await execAsync(cmd);
+
+            if (stderr) {
+                console.warn('Conversion warning:', stderr);
+            }
+            
+			const file = fs.readFileSync(outputFilePath, 'utf-8');
+            fs.unlink(outputFilePath,  (error) => {
+                if (error) {throw new Error(`Failed to convert VI file: ${error}`);}
+            });
+
+            return file || '<div class="loading">Processing VI file...</div>';
+        } catch (error) {
+            console.error('Error converting VI file:', error);
+            throw new Error(`Failed to convert VI file: ${error}`);
+        }
+    }
 
     dispose(): void {}
 }
