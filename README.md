@@ -6,7 +6,7 @@ GPreview VS Code is a tool that let's you preview LabVIEW code inside Visual Stu
 
 ## Features
 
-![GPreview VS Code Demo](images/GPreview%20Demo.webp)
+![GPreview VS Code Demo](images/VS%20Code%20Demo.webp)
 
 - Preview LabVIEW files inside VS Code
 - Explore case structures and other multi-frame structures
@@ -28,6 +28,10 @@ This extension contributes the following settings:
 None yet but please report any you experience as an issue here: [fadilf/gpreview-vscode](https://github.com/fadilf/gpreview-vscode)
 
 ## Release Notes
+
+### 0.0.5
+
+Move LV save version to 2019
 
 ### 0.0.4
 
