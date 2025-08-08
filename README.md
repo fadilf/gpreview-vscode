@@ -14,7 +14,7 @@ GPreview VS Code is a tool that let's you preview LabVIEW code inside Visual Stu
 
 ## Requirements
 
-You must have LabVIEW 2024 or later installed to use this tool.
+You must have LabVIEW 2019 or later installed to use this tool.
 
 ## Extension Settings
 
