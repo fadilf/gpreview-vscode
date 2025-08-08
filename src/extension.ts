@@ -75,10 +75,10 @@ export class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvid
             let cmd = `LabVIEWCLI -OperationName RunVI `;
             const labViewFilePath = config.get<string>('labViewFilePath', '');
             if (labViewFilePath !== '') {
-                const normalizedLabViewFilePath = path.resolve(path.normalize(labViewFilePath));
+                const normalizedLabViewFilePath = path.normalize(labViewFilePath);
                 cmd += `-LabVIEWPath "${normalizedLabViewFilePath}" `;
             }
-            cmd += `-PortNumber ${viServerPort} -VIPath "${cliPath}" "${normalizedViFilePath}" "${outputFilePath}"`;
+            cmd += `-PortNumber ${viServerPort} -VIPath "${cliPath}" "${normalizedViFilePath}" "${outputFilePath}" ${viServerPort}`;
             const { stderr } = await execAsync(cmd);
 
             if (stderr) {

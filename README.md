@@ -27,7 +27,15 @@ None yet but please report any you experience as an issue here: [fadilf/gpreview
 
 ## Release Notes
 
+### 0.0.3
+
+Support for front panel preview added and better port argument handling
+
 ### 0.0.2
+
+Minor bug fixes
+
+### 0.0.1
 
 Initial release of GPreview
 

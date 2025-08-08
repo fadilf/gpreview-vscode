@@ -11,6 +11,12 @@ suite('Extension Test Suite', function () {
 	this.timeout("60s");
 	vscode.window.showInformationMessage('Start all tests.');
 
+	test('Converting `Completely Blank.vi` into HTML', async () => {
+		await assert.doesNotReject(async () => {
+			await editorProvider.convertViToHtml('../../gpreview-labview/Test Cases/Completely Blank.vi');
+		});
+	});
+
 	test('Converting `Almost Blank.vi` into HTML', async () => {
 		await assert.doesNotReject(async () => {
 			await editorProvider.convertViToHtml('../../gpreview-labview/Test Cases/Almost Blank.vi');
