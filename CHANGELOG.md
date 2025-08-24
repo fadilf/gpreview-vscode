@@ -2,8 +2,28 @@
 
 All notable changes to the "gpreview" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## Release Notes
 
-## [Unreleased]
+### 0.0.7
 
-- Initial release
+Add support for *.vim and *.vit files
+
+### 0.0.6
+
+Move LV save version to 2019
+
+### 0.0.4
+
+Move VI rendering to Document class
+Add support for viewing files in workspace state outisde of filesystem
+Add border around preview
+
+### 0.0.3
+
+Support for front panel preview added and better port argument handling
+
+### 0.0.2
+
+Minor bug fixes
+
+### 0.0.1
