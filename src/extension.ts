@@ -132,11 +132,24 @@ export class GPreviewDocument implements vscode.CustomDocument {
     }
 
     static async convertViToHtml(viFilePath: string): Promise<string> {
+        // Hold the lockfile for the entire execution of execAsync
+        const lockfilePath = path.join(os.tmpdir(), 'gpreview-vi-convert-exec.lock');
+        const waitForLockRelease = async (timeoutMs = 60000) => {
+            const start = Date.now();
+            while (fs.existsSync(lockfilePath)) {
+                if (Date.now() - start > timeoutMs) {
+                    throw new Error('Timeout waiting for VI conversion lockfile to be released.');
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        };
+        await waitForLockRelease();
+        fs.writeFileSync(lockfilePath, String(process.pid));
         try {
             const config = vscode.workspace.getConfiguration('gpreview');
             const viServerPort = config.get<number>('viServerPort', 3363);
-			const directory = __dirname + "/../gpreview-labview/";
-			const outputFilePath = path.normalize(os.tmpdir() + "/" + crypto.randomBytes(16).toString('hex') + ".html");
+            const directory = __dirname + "/../gpreview-labview/";
+            const outputFilePath = path.normalize(os.tmpdir() + "/" + crypto.randomBytes(16).toString('hex') + ".html");
             const cliPath = path.normalize(directory + "CLI.vi");
             const normalizedViFilePath = path.resolve(path.normalize(viFilePath));
             let cmd = `LabVIEWCLI -OperationName RunVI `;
@@ -151,7 +164,6 @@ export class GPreviewDocument implements vscode.CustomDocument {
             if (stderr) {
                 console.warn('Conversion warning:', stderr);
             }
-            
 			const file = fs.readFileSync(outputFilePath, 'utf-8');
             fs.unlink(outputFilePath,  (error) => {
                 if (error) {throw new Error(`Failed to convert VI file: ${error}`);}
@@ -161,6 +173,10 @@ export class GPreviewDocument implements vscode.CustomDocument {
         } catch (error) {
             console.error('Error converting VI file:', error);
             throw new Error(`Failed to convert VI file: ${error}`);
+        } finally {
+            if (fs.existsSync(lockfilePath)) {
+                try { fs.unlinkSync(lockfilePath); } catch (e) { /* ignore */ }
+            }
         }
     }
 

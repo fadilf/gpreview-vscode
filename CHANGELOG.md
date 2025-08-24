@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.8
+
+Add locking mechanism to prevent parallel execution errors with LabVIEW CLI
+
 ### 0.0.7
 
 Add support for *.vim and *.vit files
