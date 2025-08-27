@@ -101,6 +101,7 @@ class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvider {
                         <li>viServerPort: ${viServerPort}</li>
                         <li>labViewFilePath: ${labViewFilePath}</li>
                     </ul>
+                    <p>If this error persists, consider raising an issue in the repository: <a href="https://github.com/fadilf/gpreview-vscode/issues">https://github.com/fadilf/gpreview-vscode/issues</a>.</p>
                 </div>
             </body>
             </html>
@@ -113,9 +114,77 @@ class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvider {
 }
 
 export class GPreviewDocument implements vscode.CustomDocument {
+    /**
+     * Copies the entire VS Code workspace virtual filesystem to a real folder in the temp directory.
+     * Returns the path to the temp folder.
+     */
+    static async copyWorkspaceFsToTempFolder(): Promise<string> {
+        const tempDir = path.join(os.tmpdir(), 'gpreview-vscode-fs-' + crypto.randomBytes(8).toString('hex'));
+        fs.mkdirSync(tempDir, { recursive: true });
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            throw new Error('No workspace folders found.');
+        }
+        // Helper to recursively copy
+        async function copyDir(vsUri: vscode.Uri, realPath: string) {
+            fs.mkdirSync(realPath, { recursive: true });
+            const entries = await vscode.workspace.fs.readDirectory(vsUri);
+            for (const [name, type] of entries) {
+                const childVsUri = vscode.Uri.joinPath(vsUri, name);
+                const childRealPath = path.join(realPath, name);
+                if (type === vscode.FileType.Directory) {
+                    await copyDir(childVsUri, childRealPath);
+                } else if (type === vscode.FileType.File) {
+                    const data = await vscode.workspace.fs.readFile(childVsUri);
+                    fs.writeFileSync(childRealPath, data);
+                }
+                // Symlinks and unknown types are ignored
+            }
+        }
+        for (const folder of workspaceFolders) {
+            const folderName = path.basename(folder.uri.fsPath);
+            const targetFolder = path.join(tempDir, folderName);
+            await copyDir(folder.uri, targetFolder);
+        }
+        return tempDir;
+    }
     constructor(public readonly uri: vscode.Uri) {}
 
     async readFile() {
+        if (['git', 'gitlens'].includes(this.uri.scheme)) {
+            // Extract commit hash from URI query
+            let commitHash = JSON.parse(this.uri.query)["ref"];
+            if (commitHash === "~") {
+                commitHash = "HEAD";
+            }
+            if (!commitHash) {
+                throw new Error('Could not determine commit hash from git URI.');
+            }
+            // Get repo root using git rev-parse
+            const fileDir = path.dirname(this.uri.fsPath);
+            const { execSync } = require('child_process');
+            let repoRoot;
+            try {
+                repoRoot = execSync(`git -C "${fileDir}" rev-parse --show-toplevel`, { encoding: 'utf-8' }).trim();
+            } catch (e) {
+                throw new Error('Could not determine git repository root for file: ' + this.uri.fsPath);
+            }
+            const tempDir = path.join(os.tmpdir(), 'gpreview-gitfs-' + crypto.randomBytes(8).toString('hex'));
+            fs.mkdirSync(tempDir, { recursive: true });
+            // Clone and checkout the repo at the commit
+            execSync(`git clone --no-checkout "${repoRoot}" "${tempDir}"`);
+            execSync(`git -C "${tempDir}" checkout ${commitHash} -- .`);
+            // Find the file path relative to repo root
+            const relFilePath = path.relative(repoRoot, this.uri.fsPath);
+            const filePath = path.join(tempDir, relFilePath);
+            if (!fs.existsSync(filePath)) {
+                throw new Error('File not found in checked out commit.');
+            }
+            const htmlRender = await GPreviewDocument.convertViToHtml(filePath);
+            fs.rmSync(tempDir, { recursive: true, force: true });
+            return htmlRender;
+        }
+
         const wsBytes = new Uint8Array(await vscode.workspace.fs.readFile(this.uri));
         if (fs.existsSync(this.uri.fsPath)) {
             const fsBytes = new Uint8Array(fs.readFileSync(this.uri.fsPath));
