@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.13
+
+Fix scaling bug
+
 ### 0.0.12
 
 Fix newline normalization of descriptions

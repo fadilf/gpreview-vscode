@@ -2,7 +2,7 @@
   "name": "gpreview",
   "displayName": "GPreview",
   "description": "Extension that let's you preview LabVIEW VI files in VS Code.",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "publisher": "fadil",
   "icon": "images/icon.png",
   "repository": {
