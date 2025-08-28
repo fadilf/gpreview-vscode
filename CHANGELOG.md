@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.11
+
+Incorporate metadata tab in preview
+
 ### 0.0.10
 
 Clone workspace repo in temp directory when previewing from Git/Gitlens to maintain dependencies in preview
