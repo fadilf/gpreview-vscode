@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.12
+
+Fix newline normalization of descriptions
+
 ### 0.0.11
 
 Incorporate metadata tab in preview
