@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.15
+
+Add ability to specify default tab
+
 ### 0.0.14
 
 Compress outputs and fix newlines in preview descriptions
