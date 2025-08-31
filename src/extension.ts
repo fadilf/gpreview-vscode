@@ -217,6 +217,7 @@ export class GPreviewDocument implements vscode.CustomDocument {
         try {
             const config = vscode.workspace.getConfiguration('gpreview');
             const viServerPort = config.get<number>('viServerPort', 3363);
+            const defaultTab = config.get<string>('defaultTab', '');
             const directory = __dirname + "/../gpreview-labview/";
             const outputFilePath = path.normalize(os.tmpdir() + "/" + crypto.randomBytes(16).toString('hex') + ".html");
             const cliPath = path.normalize(directory + "CLI.vi");
@@ -227,7 +228,7 @@ export class GPreviewDocument implements vscode.CustomDocument {
                 const normalizedLabViewFilePath = path.normalize(labViewFilePath);
                 cmd += `-LabVIEWPath "${normalizedLabViewFilePath}" `;
             }
-            cmd += `-PortNumber ${viServerPort} -VIPath "${cliPath}" "${normalizedViFilePath}" "${outputFilePath}" ${viServerPort}`;
+            cmd += `-PortNumber ${viServerPort} -VIPath "${cliPath}" --default-tab=${defaultTab} "${normalizedViFilePath}" "${outputFilePath}"`;
             const { stderr } = await execAsync(cmd);
 
             if (stderr) {

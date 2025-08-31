@@ -48,6 +48,12 @@
           "type": "string",
           "default": "",
           "description": "Specifies the LabVIEW executable file path to use"
+        },
+        "gpreview.defaultTab": {
+          "type": "string",
+          "default": "Info",
+          "enum": ["Info", "FP", "BD"],
+          "description": "Specifies the tab that is open when the file is loaded. If the tab is unavailable, defaults to Info"
         }
       }
     }
