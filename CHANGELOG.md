@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.18
+
+Faster preview generation by avoiding unnecessary writes
+
 ### 0.0.17
 
 Fix FlatSequence structure bug
