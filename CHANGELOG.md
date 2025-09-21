@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.20
+
+Improve BG handling
+
 ### 0.0.19
 
 Add support for tab control exploration
