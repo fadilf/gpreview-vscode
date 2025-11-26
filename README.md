@@ -19,6 +19,7 @@ GPreview VS Code is a tool that let's you preview LabVIEW code inside Visual Stu
 - LabVIEW 2019 or later
     - LabVIEW Command Line Interface
     - VI server enabled
+    - [JDP Science Common Utilities](https://www.vipm.io/package/jdp_science_lib_common_utilities/) installed
 
 ## Extension Settings
 
