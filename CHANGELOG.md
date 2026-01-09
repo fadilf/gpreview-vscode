@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.21
+
+Update gpreview-labview reference to latest commit to fix dependency mistake
+
 ### 0.0.20
 
 Improve BG handling
