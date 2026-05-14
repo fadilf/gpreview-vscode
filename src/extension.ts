@@ -169,20 +169,27 @@ export class GPreviewDocument implements vscode.CustomDocument {
             } catch (e) {
                 throw new Error('Could not determine git repository root for file: ' + this.uri.fsPath);
             }
+            // Read the blob directly from git rather than cloning + checking out
+            // the whole repo. Avoids slow clones and NTFS case-collision errors
+            // like "cannot create directory ... Directory not empty" when the
+            // tree contains paths that collide on case-insensitive filesystems.
+            const relFilePath = path.relative(repoRoot, this.uri.fsPath).replace(/\\/g, '/');
             const tempDir = path.join(os.tmpdir(), 'gpreview-gitfs-' + crypto.randomBytes(8).toString('hex'));
             fs.mkdirSync(tempDir, { recursive: true });
-            // Clone and checkout the repo at the commit
-            execSync(`git clone --no-checkout "${repoRoot}" "${tempDir}"`);
-            execSync(`git -C "${tempDir}" checkout ${commitHash} -- .`);
-            // Find the file path relative to repo root
-            const relFilePath = path.relative(repoRoot, this.uri.fsPath);
-            const filePath = path.join(tempDir, relFilePath);
-            if (!fs.existsSync(filePath)) {
-                throw new Error('File not found in checked out commit.');
+            const filePath = path.join(tempDir, path.basename(relFilePath));
+            try {
+                const blob = execSync(
+                    `git -C "${repoRoot}" show ${commitHash}:"${relFilePath}"`,
+                    { encoding: 'buffer', maxBuffer: 1024 * 1024 * 512 }
+                );
+                fs.writeFileSync(filePath, blob);
+                const htmlRender = await GPreviewDocument.convertViToHtml(filePath);
+                return htmlRender;
+            } catch (e: any) {
+                throw new Error('Could not read file at commit ' + commitHash + ': ' + (e?.message ?? e));
+            } finally {
+                fs.rmSync(tempDir, { recursive: true, force: true });
             }
-            const htmlRender = await GPreviewDocument.convertViToHtml(filePath);
-            fs.rmSync(tempDir, { recursive: true, force: true });
-            return htmlRender;
         }
 
         const wsBytes = new Uint8Array(await vscode.workspace.fs.readFile(this.uri));
