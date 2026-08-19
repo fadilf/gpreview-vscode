@@ -9,6 +9,7 @@ import crypto from 'crypto';
 const execAsync = promisify(exec);
 
 export function activate(context: vscode.ExtensionContext) {
+	GPreviewDocument.cleanupStaleGitTempFolders();
 	const provider = new GPreviewEditorProvider(context);
 	const registration = vscode.window.registerCustomEditorProvider('gpreview.vi', provider);
 	context.subscriptions.push(registration);
@@ -114,6 +115,56 @@ class GPreviewEditorProvider implements vscode.CustomReadonlyEditorProvider {
 }
 
 export class GPreviewDocument implements vscode.CustomDocument {
+    private static readonly gitTempFolderPrefix = 'gpreview-gitfs-';
+    private static readonly staleGitTempFolderAgeMs = 24 * 60 * 60 * 1000;
+
+    static cleanupStaleGitTempFolders(): void {
+        const tempRoot = os.tmpdir();
+        const staleBefore = Date.now() - GPreviewDocument.staleGitTempFolderAgeMs;
+        const folderNamePattern = /^gpreview-gitfs-(\d{13})-[a-f0-9]{16}$/;
+
+        let entries: fs.Dirent[];
+        try {
+            entries = fs.readdirSync(tempRoot, { withFileTypes: true });
+        } catch (error) {
+            console.warn('Unable to inspect temporary directory for stale GPreview folders:', error);
+            return;
+        }
+
+        for (const entry of entries) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
+
+            const match = folderNamePattern.exec(entry.name);
+            if (!match) {
+                continue;
+            }
+
+            const timestamp = Number(match[1]);
+            if (!Number.isSafeInteger(timestamp) || timestamp > staleBefore) {
+                continue;
+            }
+
+            GPreviewDocument.removeGitTempFolder(path.join(tempRoot, entry.name));
+        }
+    }
+
+    private static createGitTempFolder(): string {
+        const folderName = `${GPreviewDocument.gitTempFolderPrefix}${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+        const tempDir = path.join(os.tmpdir(), folderName);
+        fs.mkdirSync(tempDir, { recursive: true });
+        return tempDir;
+    }
+
+    private static removeGitTempFolder(tempDir: string): void {
+        try {
+            fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+        } catch (error) {
+            console.warn('Unable to remove temporary GPreview Git folder:', tempDir, error);
+        }
+    }
+
     /**
      * Copies the entire VS Code workspace virtual filesystem to a real folder in the temp directory.
      * Returns the path to the temp folder.
@@ -179,26 +230,40 @@ export class GPreviewDocument implements vscode.CustomDocument {
             } catch (e) {
                 throw new Error('Could not determine git repository root for file: ' + this.uri.fsPath);
             }
-            // Read the blob directly from git rather than cloning + checking out
-            // the whole repo. Avoids slow clones and NTFS case-collision errors
-            // like "cannot create directory ... Directory not empty" when the
-            // tree contains paths that collide on case-insensitive filesystems.
+            // By default, read only the blob to avoid slow clones and NTFS
+            // case-collision errors. An opt-in full checkout supports projects
+            // whose LabVIEW dependencies are resolved relative to the VI.
             const relFilePath = path.relative(repoRoot, this.uri.fsPath).replace(/\\/g, '/');
-            const tempDir = path.join(os.tmpdir(), 'gpreview-gitfs-' + crypto.randomBytes(8).toString('hex'));
-            fs.mkdirSync(tempDir, { recursive: true });
-            const filePath = path.join(tempDir, path.basename(relFilePath));
+            const checkoutGitDependencies = vscode.workspace
+                .getConfiguration('gpreview')
+                .get<boolean>('checkoutGitDependencies', false);
+            const tempDir = GPreviewDocument.createGitTempFolder();
             try {
-                const blob = execSync(
-                    `git -C "${repoRoot}" show ${commitHash}:"${relFilePath}"`,
-                    { encoding: 'buffer', maxBuffer: 1024 * 1024 * 512 }
-                );
-                fs.writeFileSync(filePath, blob);
+                let filePath: string;
+                if (checkoutGitDependencies) {
+                    // A complete checkout preserves relative LabVIEW dependencies.
+                    execSync(`git clone --no-checkout "${repoRoot}" "${tempDir}"`);
+                    execSync(`git -C "${tempDir}" checkout --detach ${commitHash}`);
+                    filePath = path.join(tempDir, relFilePath);
+                    if (!fs.existsSync(filePath)) {
+                        throw new Error('File not found in checked out commit.');
+                    }
+                } else {
+                    // Reading only the blob avoids slow clones and NTFS case-collision
+                    // errors when dependencies are not required for rendering.
+                    filePath = path.join(tempDir, path.basename(relFilePath));
+                    const blob = execSync(
+                        `git -C "${repoRoot}" show ${commitHash}:"${relFilePath}"`,
+                        { encoding: 'buffer', maxBuffer: 1024 * 1024 * 512 }
+                    );
+                    fs.writeFileSync(filePath, blob);
+                }
                 const htmlRender = await GPreviewDocument.convertViToHtml(filePath);
                 return htmlRender;
             } catch (e: any) {
                 throw new Error('Could not read file at commit ' + commitHash + ': ' + (e?.message ?? e));
             } finally {
-                fs.rmSync(tempDir, { recursive: true, force: true });
+                GPreviewDocument.removeGitTempFolder(tempDir);
             }
         }
 

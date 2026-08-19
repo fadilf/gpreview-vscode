@@ -54,6 +54,11 @@
           "default": "Info",
           "enum": ["Info", "FP", "BD"],
           "description": "Specifies the tab that is open when the file is loaded. If the tab is unavailable, defaults to Info"
+        },
+        "gpreview.checkoutGitDependencies": {
+          "type": "boolean",
+          "default": false,
+          "description": "Checks out Git revisions in a temporary folder when previewing, allowing LabVIEW to load repository dependencies. This is slower and can fail for repositories with paths that collide by case on Windows."
         }
       }
     }
