@@ -4,6 +4,10 @@ All notable changes to the "gpreview" extension will be documented in this file.
 
 ## Release Notes
 
+### 0.0.27
+
+Improve Git/GitLens VI previews with ref-less URI handling, optional full-repository checkout for dependency resolution, detached revision checkouts, and stale temporary-folder cleanup. Harden VI conversion locking with atomic acquisition, heartbeat renewal, stale-lock recovery, and safe release.
+
 ### 0.0.26
 
 Fix "Directory not empty" error when previewing files from Git/Gitlens by reading the file blob directly via `git show` instead of cloning and checking out the whole repo
