@@ -151,15 +151,25 @@ export class GPreviewDocument implements vscode.CustomDocument {
     constructor(public readonly uri: vscode.Uri) {}
 
     async readFile() {
+        let commitHash: string | undefined;
         if (['git', 'gitlens'].includes(this.uri.scheme)) {
-            // Extract commit hash from URI query
-            let commitHash = JSON.parse(this.uri.query)["ref"];
+            // A ref is present for historical revisions. Ref-less Git/GitLens
+            // URIs can represent staged, working-tree, or diff content, which
+            // must be read through VS Code's virtual filesystem below.
+            try {
+                const query = JSON.parse(this.uri.query || '{}') as { ref?: unknown };
+                if (typeof query.ref === 'string' && query.ref.length > 0) {
+                    commitHash = query.ref;
+                }
+            } catch {
+                // Fall back to the virtual filesystem for an unrecognised URI.
+            }
             if (commitHash === "~") {
                 commitHash = "HEAD";
             }
-            if (!commitHash) {
-                throw new Error('Could not determine commit hash from git URI.');
-            }
+        }
+
+        if (commitHash) {
             // Get repo root using git rev-parse
             const fileDir = path.dirname(this.uri.fsPath);
             const { execSync } = require('child_process');
