@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { promisify } from 'util';
 import os from 'os';
 import crypto from 'crypto';
+import * as properLockfile from 'proper-lockfile';
 
 const execAsync = promisify(exec);
 
@@ -283,20 +284,30 @@ export class GPreviewDocument implements vscode.CustomDocument {
     }
 
     static async convertViToHtml(viFilePath: string): Promise<string> {
-        // Hold the lockfile for the entire execution of execAsync
-        const lockfilePath = path.join(os.tmpdir(), 'gpreview-vi-convert-exec.lock');
-        const waitForLockRelease = async (timeoutMs = 60000) => {
-            const start = Date.now();
-            while (fs.existsSync(lockfilePath)) {
-                if (Date.now() - start > timeoutMs) {
-                    throw new Error('Timeout waiting for VI conversion lockfile to be released.');
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        };
-        await waitForLockRelease();
-        fs.writeFileSync(lockfilePath, String(process.pid));
+        // Use a new lock target so stale files from the legacy lock cannot block
+        // conversions after upgrading. proper-lockfile creates an atomic lock
+        // directory and refreshes its mtime while the conversion is running.
+        const lockTargetPath = path.join(os.tmpdir(), 'gpreview-vi-convert-exec-v2');
+        let releaseLock: (() => Promise<void>) | undefined;
+        let compromisedLockError: Error | undefined;
+        let conversionError: unknown;
         try {
+            releaseLock = await properLockfile.lock(lockTargetPath, {
+                realpath: false,
+                stale: 30_000,
+                update: 5_000,
+                retries: {
+                    retries: 600,
+                    factor: 1,
+                    minTimeout: 100,
+                    maxTimeout: 100
+                },
+                onCompromised: error => {
+                    compromisedLockError = error;
+                    console.error('GPreview conversion lock was compromised:', error);
+                }
+            });
+
             const config = vscode.workspace.getConfiguration('gpreview');
             const viServerPort = config.get<number>('viServerPort', 3363);
             const defaultTab = config.get<string>('defaultTab', '');
@@ -316,6 +327,11 @@ export class GPreviewDocument implements vscode.CustomDocument {
             if (stderr) {
                 console.warn('Conversion warning:', stderr);
             }
+
+            if (compromisedLockError) {
+                throw compromisedLockError;
+            }
+
 			const file = fs.readFileSync(outputFilePath, 'utf-8');
             fs.unlink(outputFilePath,  (error) => {
                 if (error) {throw new Error(`Failed to convert VI file: ${error}`);}
@@ -323,11 +339,19 @@ export class GPreviewDocument implements vscode.CustomDocument {
 
             return file || '<div class="loading">Processing VI file...</div>';
         } catch (error) {
+            conversionError = error;
             console.error('Error converting VI file:', error);
             throw new Error(`Failed to convert VI file: ${error}`);
         } finally {
-            if (fs.existsSync(lockfilePath)) {
-                try { fs.unlinkSync(lockfilePath); } catch (e) { /* ignore */ }
+            if (releaseLock) {
+                try {
+                    await releaseLock();
+                } catch (error) {
+                    console.warn('Unable to release GPreview conversion lock:', error);
+                    if (!conversionError) {
+                        throw new Error(`Failed to release GPreview conversion lock: ${error}`);
+                    }
+                }
             }
         }
     }
